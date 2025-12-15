@@ -1,0 +1,555 @@
+
+
+
+//Switch Praha 
+enable
+configure terminal
+
+vlan 40
+ name LAN-40
+vlan 50
+ name LAN-50
+vlan 60
+ name LAN-60
+vlan 80
+ name SERVERY-INTSER
+vlan 90
+ name SERVERY-WEB
+exit
+
+! 2. Přiřazení portů podle tvého zadání
+interface FastEthernet0/1
+ switchport mode access
+ switchport access vlan 40
+ description PC1
+
+interface FastEthernet0/2
+ switchport mode access
+ switchport access vlan 50
+ description PC2
+
+interface FastEthernet0/3
+ switchport mode access
+ switchport access vlan 60
+ description PC3
+
+interface FastEthernet0/4
+ switchport mode access
+ switchport access vlan 80
+ description IntSer1
+
+interface FastEthernet0/5
+ switchport mode access
+ switchport access vlan 90
+ description WEB-Server
+
+! 3. Nastavení TRUNKU směrem k routeru RX2 (předpokládám port 24 dle zadání)
+interface FastEthernet0/24
+ switchport mode trunk
+ ! Pokud by to nefungovalo hned, někdy je nutné zadat: switchport trunk encapsulation dot1q
+ no shutdown
+
+////////Switch PLZEŇ
+enable
+configure terminal
+
+! 1. Vytvoření VLAN
+vlan 10
+ name LAN-10
+vlan 20
+ name LAN-20
+vlan 30
+ name LAN-30
+vlan 90
+ name SERVERY-PLZEN
+exit
+
+! 2. Přiřazení portů podle tvého zadání
+interface FastEthernet0/1
+ switchport mode access
+ switchport access vlan 10
+ description PC7
+
+interface FastEthernet0/2
+ switchport mode access
+ switchport access vlan 20
+ description PC8
+
+interface FastEthernet0/3
+ switchport mode access
+ switchport access vlan 30
+ description PC9
+
+interface FastEthernet0/4
+ switchport mode access
+ switchport access vlan 90
+ description IntSer2
+
+! 3. Nastavení TRUNKU směrem k routeru RX1 (předpokládám port 24 dle zadání)
+interface FastEthernet0/24
+ switchport mode trunk
+ no shutdown
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+RX2> enable
+RX2# configure terminal
+
+! Zapnutí fyzického rozhraní (důležité!)
+RX2(config)# interface GigabitEthernet0/1
+RX2(config-if)# no shutdown
+RX2(config-if)# exit
+
+! --- Nastavení Sub-interface pro VLANy ---
+
+! VLAN 40 (PC1 / S1) - IP podle tabulky
+RX2(config)# interface GigabitEthernet0/1.40
+RX2(config-subif)# encapsulation dot1Q 40
+RX2(config-subif)# ip address 172.1.4.193 255.255.255.224
+
+! VLAN 50 (PC2 / S2)
+RX2(config)# interface GigabitEthernet0/1.50
+RX2(config-subif)# encapsulation dot1Q 50
+RX2(config-subif)# ip address 172.1.4.129 255.255.255.192
+
+! VLAN 60 (PC3 / S3)
+RX2(config)# interface GigabitEthernet0/1.60
+RX2(config-subif)# encapsulation dot1Q 60
+RX2(config-subif)# ip address 172.1.4.1 255.255.255.128
+
+! VLAN 80 (IntSer1)
+RX2(config)# interface GigabitEthernet0/1.80
+RX2(config-subif)# encapsulation dot1Q 80
+RX2(config-subif)# ip address 172.1.5.1 255.255.255.128
+
+! VLAN 90 (WEB Server)
+RX2(config)# interface GigabitEthernet0/1.90
+RX2(config-subif)# encapsulation dot1Q 90
+RX2(config-subif)# ip address 172.1.5.129 255.255.255.128
+
+! VLAN 70 (ISP - připojení k internetu)
+RX2(config)# interface GigabitEthernet0/1.70
+RX2(config-subif)# encapsulation dot1Q 70
+RX2(config-subif)# ip address 200.1.1.2 255.255.255.252
+
+! --- Sériová linka zůstává stejná (nebo změň na g0/0/0 pokud nemáš sériák) ---
+! Pokud používáš Serial0/0/0:
+RX2(config)# interface Serial0/0/0
+RX2(config-if)# ip address 172.1.3.1 255.255.255.0
+RX2(config-if)# no shutdown
+
+
+//RX1
+
+enable
+configure terminal
+
+interface GigabitEthernet0/1
+no shutdown
+exit
+
+ interface GigabitEthernet0/1.10
+encapsulation dot1Q 10
+ ip address 172.1.2.1 255.255.255.0
+
+interface GigabitEthernet0/1.20
+encapsulation dot1Q 20
+ip address 172.1.0.1 255.255.255.0
+
+interface GigabitEthernet0/1.30
+ encapsulation dot1Q 30
+ip address 172.1.1.1 255.255.255.0
+
+ interface GigabitEthernet0/1.90
+encapsulation dot1Q 90
+ip address 172.1.6.1 255.255.255.128
+
+interface GigabitEthernet0/1.70
+encapsulation dot1Q 70
+ip address 201.1.1.2 255.255.255.252
+exit 
+
+interface Serial0/0/0
+ip address 172.1.3.2 255.255.255.0
+no shutdown
+
+RX2
+RX2(config)# ip route 0.0.0.0 0.0.0.0 200.1.1.1  ! Default route na ISP
+RX2(config)# router rip
+RX2(config-router)# version 2
+RX2(config-router)# no auto-summary
+RX2(config-router)# network 172.1.0.0            ! Propagace našich sítí
+
+
+RX1 
+RX1(config)# ip route 0.0.0.0 0.0.0.0 201.1.1.1  ! Default route na ISP
+RX1(config)# router rip
+RX1(config-router)# version 2
+RX1(config-router)# no auto-summary
+RX1(config-router)# network 172.1.0.0
+
+RX2
+RX2> enable
+RX2# configure terminal
+interface GigabitEthernet0/0/0       ! Zkontroluj, zda je to g0/0 nebo g0/0/0 (najeď myší na port)
+ ip address 172.1.3.1 255.255.255.0  ! Adresa dle tabulky pro RX2.S4 
+ no shutdown                         ! Zapnutí rozhraní (to změní červenou na zelenou)
+ exit
+
+RX1
+RX1> enable
+RX1# configure terminal
+interface GigabitEthernet0/0/0       ! Opět zkontroluj přesné značení portu
+ ip address 172.1.3.2 255.255.255.0  ! Adresa dle tabulky pro RX1.S4 
+ no shutdown
+ exit
+
+
+
+
+RX2
+RX2(config)# router rip
+RX2(config-router)# network 172.1.3.0  ! Přidáme informaci o spojovací síti
+
+
+
+RX1
+RX1(config)# router rip
+RX1(config-router)# network 172.1.3.0
+
+
+
+
+RX2
+RX2> enable
+RX2# configure terminal
+
+! 1. Nejprve vymažeme nastavení ze sériového portu
+RX2(config)# interface Serial0/0/0
+RX2(config-if)# no ip address
+RX2(config-if)# shutdown
+RX2(config-if)# exit
+
+! 2. Teď už půjde nastavit GigabitEthernet
+RX2(config)# interface GigabitEthernet0/0
+! (Pokud se port jmenuje gi0/0/0, použij interface GigabitEthernet0/0/0)
+RX2(config-if)# ip address 172.1.3.1 255.255.255.0
+RX2(config-if)# no shutdown
+RX2(config-if)# exit
+
+Pozor: Pokud máš stejný problém i na druhém routeru RX1 (Plzeň), musíš tam udělat to samé (smazat IP ze Serial a dát ji na Gi0/0), jen s adresou 172.1.3.2.
+
+
+TEST, že zto funguje 
+RX2# ping 172.1.3.2
+
+
+/(ú////////////////////////////////////////DHCP
+Pro RX2
+RX2(config)# ip dhcp excluded-address 172.1.4.192 172.1.4.195  ! Rezervace pro bránu S1
+RX2(config)# ip dhcp excluded-address 172.1.4.128 172.1.4.130  ! Rezervace pro bránu S2
+RX2(config)# ip dhcp excluded-address 172.1.0.1 172.1.0.5      ! Rezervace S8 (Plzeň)
+RX2(config)# ip dhcp excluded-address 172.1.1.1 172.1.1.5      ! Rezervace S9 (Plzeň)
+
+! --- POOLY PRO PRAHU ---
+! Pro PC1 (VLAN 40 / S1)
+RX2(config)# ip dhcp pool PRAHA_S1
+RX2(dhcp-config)# network 172.1.4.192 255.255.255.224
+RX2(dhcp-config)# default-router 172.1.4.193
+RX2(dhcp-config)# dns-server 172.1.5.10        ! IntSer1 v Praze [cite: 126]
+RX2(dhcp-config)# lease 0 4                    ! Zápůjčka 4 hodiny [cite: 118]
+RX2(dhcp-config)# exit
+
+! Pro PC2 (VLAN 50 / S2)
+RX2(config)# ip dhcp pool PRAHA_S2
+RX2(dhcp-config)# network 172.1.4.128 255.255.255.192
+RX2(dhcp-config)# default-router 172.1.4.129
+RX2(dhcp-config)# dns-server 172.1.5.10
+RX2(dhcp-config)# lease 0 4
+RX2(dhcp-config)# exit
+
+! --- POOLY PRO PLZEŇ (Tyto sítě jsou fyzicky za RX1!) ---
+! Pro PC8 (VLAN 20 / S8)
+RX2(config)# ip dhcp pool PLZEN_S8
+RX2(dhcp-config)# network 172.1.0.0 255.255.255.0
+RX2(dhcp-config)# default-router 172.1.0.1
+RX2(dhcp-config)# dns-server 172.1.6.10        ! IntSer2 v Plzni [cite: 126]
+RX2(dhcp-config)# lease 0 4
+RX2(dhcp-config)# exit
+
+! Pro PC9 (VLAN 30 / S9)
+RX2(config)# ip dhcp pool PLZEN_S9
+RX2(dhcp-config)# network 172.1.1.0 255.255.255.0
+RX2(dhcp-config)# default-router 172.1.1.1
+RX2(dhcp-config)# dns-server 172.1.6.10
+RX2(dhcp-config)# lease 0 4
+RX2(dhcp-config)# exit
+
+
+
+¨
+
+
+
+PRO RX1
+! Pro VLAN 20 (PC8 / S8)
+RX1(config)# interface GigabitEthernet0/1.20  ! (Nebo g0/1.20 dle tvého nastavení)
+RX1(config-subif)# ip helper-address 172.1.3.1  ! IP adresa RX2 (Praha)
+RX1(config-subif)# exit
+
+! Pro VLAN 30 (PC9 / S9)
+RX1(config)# interface GigabitEthernet0/1.30
+RX1(config-subif)# ip helper-address 172.1.3.1
+RX1(config-subif)# exit
+
+
+
+
+
+. Nastavení Serverů (Statické IP)
+Servery v Packet Traceru nemají příkazovou řádku jako routery, musíš na ně kliknout a nastavit to v záložce Desktop -> IP Configuration.
+
+A. Server IntSer1 (Praha - VLAN 80)
+
+
+IP Address: 172.1.5.10 
+
+Subnet Mask: 255.255.255.128 (Maska /25)
+
+Default Gateway: 172.1.5.1
+
+DNS Server: 127.0.0.1 (Sám sobě bude DNS)
+
+B. Server WEB (Praha - VLAN 90)
+
+
+IP Address: 172.1.5.138 
+
+Subnet Mask: 255.255.255.128 (Maska /25)
+
+Default Gateway: 172.1.5.129
+
+DNS Server: 172.1.5.10 (IntSer1)
+
+C. Server IntSer2 (Plzeň - VLAN 90)
+
+
+IP Address: 172.1.6.10 
+
+Subnet Mask: 255.255.255.128 (Maska /25)
+
+Default Gateway: 172.1.6.1
+
+DNS Server: 172.1.5.10 (Hlavní DNS je v Praze)
+
+2. Nastavení PC bez DHCP (Statické)
+Podle zadání sítě S3 a S7 nesmí používat DHCP. Musíme je nastavit ručně.
+
+A. PC3 (Praha - VLAN 60 / Sít S3)
+
+Klikni na PC3 -> Desktop -> IP Configuration -> Static
+
+IP: 172.1.4.10 (Například, rozsah je .2 až .126)
+
+
+Mask: 255.255.255.128 
+
+Gateway: 172.1.4.1
+
+
+DNS: Žádné (Zadání říká, že S3 nemá přístup k firemnímu DNS )
+
+B. PC7 (Plzeň - VLAN 10 / Sít S7)
+
+Klikni na PC7 -> Desktop -> IP Configuration -> Static
+
+IP: 172.1.2.10 (Například)
+
+
+Mask: 255.255.255.0 
+
+Gateway: 172.1.2.1
+
+DNS: Žádné
+
+3. Rychlý test před ACL
+Než začneme blokovat provoz, ověř si, že se tam teď dostaneš (aby jsi pak věděl, že jsi to zablokoval správně).
+
+Z PC1 (Praha) pingni na IntSer1 (ping 172.1.5.10). Mělo by to projít.
+
+Z PC1 (Praha) pingni na WEB (ping 172.1.5.138). Mělo by to projít.
+
+Z PC1 (Praha) pingni na PC7 (Plzeň) (ping 172.1.2.10). Mělo by to projít.
+
+
+
+
+DAL39 //////////////////////////////////////////////////
+
+
+
+Bash
+
+RX2(config)# ip access-list extended OMEZENI_S3
+! 1. Povolit provoz do sítě S10 (Světlá - RX3)
+RX2(config-ext-nacl)# permit ip 172.1.4.0 0.0.0.127 192.168.1.0 0.0.0.255
+! 2. Vše ostatní zakázat (Implicit Deny tam je automaticky, ale pro jistotu:)
+RX2(config-ext-nacl)# deny ip any any
+RX2(config-ext-nacl)# exit
+
+! 3. Aplikace na rozhraní (VLAN 60)
+RX2(config)# interface GigabitEthernet0/1.60
+RX2(config-subif)# ip access-group OMEZENI_S3 in
+B. Konfigurace ACL na RX1 (Plzeň) pro síť S7
+To samé uděláme v Plzni.
+
+Zadej na RX1:
+
+Bash
+
+RX1(config)# ip access-list extended OMEZENI_S7
+! 1. Povolit provoz do sítě S10 (Světlá)
+RX1(config-ext-nacl)# permit ip 172.1.2.0 0.0.0.255 192.168.1.0 0.0.0.255
+! 2. Vše ostatní zakázat
+RX1(config-ext-nacl)# deny ip any any
+RX1(config-ext-nacl)# exit
+
+! 3. Aplikace na rozhraní (VLAN 10)
+RX1(config)# interface GigabitEthernet0/1.10
+RX1(config-subif)# ip access-group OMEZENI_S7 in
+2. Krok: Test izolace (Ověření funkčnosti)
+Teď musíme ověřit, že jsme to "rozbili" správně.
+
+Jdi na PC3 (Praha).
+
+Zkus pingnout na IntSer1 (ping 172.1.5.10).
+
+Výsledek: Musí selhat (Destination host unreachable nebo Request timed out). Předtím to šlo, teď už nesmí.
+
+
+
+
+RX2(config)# ip access-list extended PRAVIDLA_S1
+! 1. Povolit ICMP (Ping) kamkoliv (Internet i vnitřní síť)
+RX2(config-ext-nacl)# permit icmp 172.1.4.192 0.0.0.31 any
+
+! 2. Povolit komunikaci na firemní servery (DNS - UDP/TCP 53, WEB - TCP 80/443)
+RX2(config-ext-nacl)# permit ip 172.1.4.192 0.0.0.31 host 172.1.5.10
+RX2(config-ext-nacl)# permit ip 172.1.4.192 0.0.0.31 host 172.1.5.138
+RX2(config-ext-nacl)# permit ip 172.1.4.192 0.0.0.31 host 172.1.6.10
+
+! 3. Povolit komunikaci do sítě S9 (Plzeň)
+RX2(config-ext-nacl)# permit ip 172.1.4.192 0.0.0.31 172.1.1.0 0.0.0.255
+
+! 4. Povolit TCP do Internetu (kamkoliv jinam)
+RX2(config-ext-nacl)# permit tcp 172.1.4.192 0.0.0.31 any
+
+! 5. Zbytek se zahodí (Implicit Deny)
+RX2(config-ext-nacl)# exit
+
+! Aplikace na rozhraní
+RX2(config)# interface GigabitEthernet0/1.40
+RX2(config-subif)# ip access-group PRAVIDLA_S1 in
+
+
+
+Opět testy pingů. 
+ping 172.1.5.10 ten by měl projít 
+ping na PC3 (DHCP nějaká adresa) by neměl. 
+
+
+
+
+
+
+RX2(config)# interface GigabitEthernet0/1.70  ! Rozhraní k ISP
+RX2(config-subif)# ip nat outside
+RX2(config-subif)# exit
+
+RX2(config)# interface GigabitEthernet0/1.40  ! Síť S1
+RX2(config-subif)# ip nat inside
+RX2(config-subif)# exit
+
+RX2(config)# interface GigabitEthernet0/1.50  ! Síť S2
+RX2(config-subif)# ip nat inside
+RX2(config-subif)# exit
+
+
+
+
+
+RX2(config)# access-list 10 permit 172.1.4.192 0.0.0.31   ! Povolit S1
+RX2(config)# access-list 10 permit 172.1.4.128 0.0.0.63   ! Povolit S2
+
+
+RX2(config)# ip nat inside source list 10 interface GigabitEthernet0/1.70 overload
+
+RX2(config)# ip nat inside source static tcp 172.1.5.138 443 200.1.1.2 443
+
+
+
+Plzen 
+RX1(config)# interface GigabitEthernet0/1.70  ! Rozhraní k ISP
+RX1(config-subif)# ip nat outside
+RX1(config-subif)# exit
+
+RX1(config)# interface GigabitEthernet0/1.30  ! Síť S9 (povolená)
+RX1(config-subif)# ip nat inside
+RX1(config-subif)# exit
+
+! Na VLAN 10 (S7) a VLAN 20 (S8) dávat 'ip nat inside' nemusíš, 
+! protože stejně nebudou v ACL, ale ničemu to nevadí.
+
+RX1(config)# access-list 10 permit 172.1.1.0 0.0.0.255    ! Povolit S9
+RX1(config)# ip nat inside source list 10 interface GigabitEthernet0/1.70 overload
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
