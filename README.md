@@ -1,2 +1,2 @@
 # Code-snipplet
-Quick notes or configurations
+Quick notes or configurations.
