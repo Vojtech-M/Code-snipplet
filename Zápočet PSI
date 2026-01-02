@@ -1,0 +1,81 @@
+
+====== SWITCH ==============
+enable
+conf t 
+
+vlan 10
+name LocLAN
+end
+
+vlan 70
+name INTERNET
+end
+
+Přejmenování na SW1
+conf t
+hostname SW1
+exit
+
+Nastavení range do vlany 
+int range fa0/10 - 15
+switchport mode access
+switchport access vlan 10  - TA LOKÁLNÍ
+
+int gig0/1
+switchport mode trunk
+- TO CO VEDE TO ROUTERU - TRUNK
+
+int fa0/1
+switchport mode access 
+switchport access vlan 70
+- TO CO VEDE DO INTERNETU - ACCESS
+
+==============ROUTER============
+en 
+conf t
+hostname R
+int gig0/0
+no sh
+
+Připravíme Subinterfacy
+int gig0/0.10 
+Encapsulation dot1Q 10   - TA LOKÁLNÍ
+
+ip address 192.168.78.1 255.255.255.0  - "Lokální síť je v rozsahu"
+exit
+int gig0/0.70
+Encapsulation dot1Q 70
+ip address 81.23.218.2 255.255.255.252
+
+Nějak zapnout to DHCP
+ip dhcp excluded-address 192.168.78.1 192.168.78.99
+ip dhcp excluded-address 192.168.78.151 192.168.78.254
+ip dhcp pool LocLAN
+Network 192.168.78.0 255.255.255.0 - Lokální
+Default-router 192.168.78.1
+dns-server 8.8.8.8
+exit
+
+
+Nastavení NAT
+access-list 10 permit 192.168.78.0 0.0.0.255
+ip nat inside source list 10 interface gig0/0.70 overload
+
+
+Routování do internetu
+ip route 0.0.0.0 0.0.0.0 81.23.218.1
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
