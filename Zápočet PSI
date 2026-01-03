@@ -1,4 +1,5 @@
 
+
 ====== SWITCH ==============
 enable
 conf t 
@@ -16,7 +17,7 @@ conf t
 hostname SW1
 exit
 
-Nastavení range do vlany 
+Nastavení range do VLANy 
 int range fa0/10 - 15
 switchport mode access
 switchport access vlan 10  - TA LOKÁLNÍ
